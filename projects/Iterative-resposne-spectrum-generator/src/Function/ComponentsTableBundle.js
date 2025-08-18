@@ -19,6 +19,15 @@ const ComponentsTableBundle = ({ tableData }) => {
           <TableCell>
             <Typography>Dz Stiffness</Typography>
           </TableCell>
+          <TableCell>
+            <Typography>Dx Disp</Typography>
+          </TableCell>
+          <TableCell>
+            <Typography>Dy Disp</Typography>
+          </TableCell>
+          <TableCell>
+            <Typography>Dz Disp</Typography>
+          </TableCell>
         </TableRow>
       </TableHead>
       

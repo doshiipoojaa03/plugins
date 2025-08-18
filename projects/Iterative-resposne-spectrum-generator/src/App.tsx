@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Panel,Typography, TextField, Button, Scrollbars } from "@midasit-dev/moaui"; 
+import { Panel,Typography, TextField, Button, Scrollbars, ChartLine } from "@midasit-dev/moaui"; 
 import { DropList } from '@midasit-dev/moaui';
 import { midasAPI } from "./Function/Common";
 import  ComponentsTableBundle  from "./Function/ComponentsTableBundle";
@@ -7,6 +7,7 @@ import { iterativeResponseSpectrum } from "./utils_pyscript";
 import { mapi_key } from "./utils_pyscript";
 import { useSnackbar, SnackbarProvider } from "notistack";
 import ComponentsIconAdd from "./Function/ComponentsIconAdd";
+// import  LiveConvergencePlot from "./Components/LiveConvergencePlot";
 import * as XLSX from 'xlsx';
 // import { GuideBox, Alert } from "@midasit-dev/moaui";
 // import ComponentsAlertError from "./Function/ComponentsAlertError";
@@ -44,6 +45,17 @@ const App = () => {
   const [csvData, setCsvData] = useState<string>("");
   // Fetch data for dropdowns
   const [triggerFetch, setTriggerFetch] = useState<boolean>(false);
+	
+	const dummyData = [
+    {
+      id: "dummy-line",
+      color: "transparent", // hides the line
+      data: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0.1 }, // flat line just for grid scaling
+      ],
+    },
+  ];
 
   const resetAndFetchData = () => {
 	  // Reset state variables
@@ -289,14 +301,14 @@ const handleRunAnalysis = async () => {
 };
   
   return (
-    <Panel width="720px" height="460px" marginTop={3}>
-		<Panel width="680px" height="50px" variant="box">
+    <Panel width="1220px" height="460px" marginTop={3}>
+		<Panel width="1220px" height="50px" variant="box">
 		<Typography variant="h1" color="primary" center={true} size="large">
       Iterative Response Spectrum
     </Typography>
 		</Panel>
-			<Panel width="680px" height="430px" variant="box" flexItem>
-				<Panel width="250px" height="430px" variant="box">
+			<Panel width="1210px" height="430px" variant="box" flexItem flexDirection={"row"} >
+				<Panel width="250px" height="430px" variant="box" >
 			{/* <Panel width="250px" height="80px" variant="strock" >
 			<Typography>Select Structure Group</Typography>
 			<div style={{ marginTop: '10px' }}>
@@ -371,31 +383,54 @@ Refresh
 </Button> 
 </Panel>
 </Panel>
-<Panel width="430px" height="380px" variant="strock" marginX="20px"marginRight={0}>
-<Panel width="420px" height="20px" variant="box" marginX="0px"marginRight={0} flexItem>
-<Typography variant="h1" paddingRight={42}>Results</Typography>
+<Panel width="570px" height="380px" variant="strock" marginX="20px"marginRight={0} >
+<Panel width="570px" height="20px" variant="box" marginX="0px"marginRight={0} flexItem>
+<Typography variant="h1" paddingRight={60}>Results</Typography>
 <ComponentsIconAdd results={results} onDownload={handleDownload} />
 </Panel>
-<Panel width="440px" height="60px" variant="box"marginRight="20px">
+<Panel width="550px" height="60px" variant="box"marginRight="5px">
 			<Typography variant="body2">Select Iteration step</Typography>
 			<div style={{ marginTop: '6px' }}>
 			<DropList 
 			itemList={iterations}
-			width="400px" 
+			width="539px" 
 			defaultValue="Korean"
 			value={selectedIteration}
 			onChange={onChangeHandler_ir} 
 		/>   </div>
 		</Panel>
-		<Panel width="440px"height="330px" variant="box" marginRight="20px">
-			<Scrollbars width="400px" height="245px">
+		<Panel width="550px"height="330px" variant="box" marginRight="5px">
+			<Scrollbars width="538px" height="245px">
 		<ComponentsTableBundle tableData={tableData} />   
 		</Scrollbars>
 		</Panel>	
 </Panel>
+<Panel width="450px" height="380px" variant="strock" marginX="10px">
+	<Typography variant="h1" center={true} color="primary">Live Convergence Plot</Typography>
+  <div style={{ width: "100%", height: "360px", position: "relative" }}>
+    <ChartLine
+      data={dummyData}
+      axisBottom
+      axisBottomTickValues={5}
+      axisBottomDecimals={1}
+      axisBottomLegend="Iteration"
+      axisLeft
+      axisLeftTickValues={5}
+      axisLeftDecimals={2}
+      axisLeftLegend="Max Ratio Diff"
+      width="100%"
+      height="100%"
+      pointSize={0}
+      marginTop={20}
+      marginRight={25}
+      marginLeft={50}
+      marginBottom={55}
+    />
+  </div>
+</Panel>
+
 		</Panel>
-		</Panel>
+	</Panel>
   );
 };
-
 export default App;
