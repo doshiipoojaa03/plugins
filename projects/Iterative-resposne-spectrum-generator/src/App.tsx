@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Panel,Typography, TextField, Button, Scrollbars, ChartLine } from "@midasit-dev/moaui"; 
+import { Panel,Typography, TextField, Button, Scrollbars, ChartLine, Grid } from "@midasit-dev/moaui"; 
 import { DropList } from '@midasit-dev/moaui';
 import { midasAPI } from "./Function/Common";
 import  ComponentsTableBundle  from "./Function/ComponentsTableBundle";
@@ -71,6 +71,7 @@ const App = () => {
 	  setResults({});
 	  setTableData({});
 	  setCsvData("");
+		setLogData([]);
 	  // Trigger fetch
 	  setTriggerFetch(prev => !prev);
   };
@@ -159,104 +160,104 @@ function onChangeHandler_ir(event: any){
 }
 
 const handleRunAnalysis = async () => {
-    try {
-		if (!selectedBoundaryGroup && !selectedRsLoadCase) {
-			enqueueSnackbar("Please select the required boundary group and Load Case before running the analysis.", {
-				variant: "error",
-				anchorOrigin: { vertical: "top", horizontal: "center" },
-			});
-			return;
-		}	
-		// if (!selectedStructureGroup && !selectedBoundaryGroup) {
-		// 	enqueueSnackbar("Please select the required groups before running the analysis.", {
-		// 		variant: "error",
-		// 		anchorOrigin: { vertical: "top", horizontal: "center" },
-		// 	});
-		// 	return;
-		// }
-		// if (!selectedStructureGroup) {
-		// 	enqueueSnackbar("Please select the required Structure Group before running the analysis.", {
-		// 		variant: "error",
-		// 		anchorOrigin: { vertical: "top", horizontal: "center" },
-		// 	});
-		// 	return;
-		// }
-		if (!selectedBoundaryGroup) {
-			enqueueSnackbar("Please select the required Boundary Group before running the analysis.", {
-				variant: "error",
-				anchorOrigin: { vertical: "top", horizontal: "center" },
-			});
-			return;
-		}	
-		if (!selectedRsLoadCase) {
-			enqueueSnackbar("Please select the required Load Case before running the analysis.", {
-				variant: "error",
-				anchorOrigin: { vertical: "top", horizontal: "center" },
-			});
-			return;
-		}	
-		if (tolerance === '' || isNaN(parseFloat(tolerance))) {
-			enqueueSnackbar("Please enter a valid tolerance value.", {
-				variant: "error",
-				anchorOrigin: { vertical: "top", horizontal: "center" },
-			});
-			return;
-		}
-		enqueueSnackbar("Please wait while running analysis...", {
-			variant: "info",
-			anchorOrigin: { vertical: "top", horizontal: "center" },
-		  });
-		  setTimeout(async () => {
-            console.log(
-                globalStructureGroups[parseInt(selectedStructureGroup)],
-                globalBoundaryGroups[parseInt(selectedBoundaryGroup)],
-                globalRsLoadCases[parseInt(selectedRsLoadCase)],
-                tolerance
-            );
-            const globalkey = mapi_key;
-
-            try {
-                const result = await iterativeResponseSpectrum(
-										globalBoundaryGroups[parseInt(selectedBoundaryGroup)], 
-										globalRsLoadCases[parseInt(selectedRsLoadCase)], 
-										parseFloat(tolerance), 
-										mapi_key
-									);
-
-									setResults(result.table);
-									setLogData(result.log);
-									
-									// Set initially selected iteration to first iteration
-									const firstIteration = Object.keys(result.table)[0] || null;
-									setSelectedIteration(firstIteration);
-
-									// Map for iteration dropdown
-									const mappedIterations = new Map(
-										Object.keys(result.table).map(key => [key, parseInt(key)])
-									);
-									setIterations(mappedIterations);
-                console.log("Mapped iterations:", mappedIterations);
-                console.log("Analysis results:", result);
-                enqueueSnackbar("Analysis completed successfully!", {
-                    variant: "success",
-                    anchorOrigin: { vertical: "top", horizontal: "center" },
-                });
-            } catch (error) {
-                enqueueSnackbar("Error while running analysis!", {
-                    variant: "error",
-                    anchorOrigin: { vertical: "top", horizontal: "center" },
-                });
-                console.error("Error running analysis:", error);
-            }
-        }, 0);
-    } catch (error) {
-		enqueueSnackbar("Error while running analysis!", {
-			variant: "error",
-			anchorOrigin: { vertical: "top", horizontal: "center" },
-		  })
-      console.error("Error running analysis:", error);
+  try {
+    if (!selectedBoundaryGroup && !selectedRsLoadCase) {
+      enqueueSnackbar(
+        "Please select the required boundary group and Load Case before running the analysis.",
+        { variant: "error", anchorOrigin: { vertical: "top", horizontal: "center" } }
+      );
+      return;
     }
-  };
+
+    if (!selectedBoundaryGroup) {
+      enqueueSnackbar("Please select the required Boundary Group before running the analysis.", {
+        variant: "error",
+        anchorOrigin: { vertical: "top", horizontal: "center" },
+      });
+      return;
+    }
+    if (!selectedRsLoadCase) {
+      enqueueSnackbar("Please select the required Load Case before running the analysis.", {
+        variant: "error",
+        anchorOrigin: { vertical: "top", horizontal: "center" },
+      });
+      return;
+    }
+    if (tolerance === "" || isNaN(parseFloat(tolerance))) {
+      enqueueSnackbar("Please enter a valid tolerance value.", {
+        variant: "error",
+        anchorOrigin: { vertical: "top", horizontal: "center" },
+      });
+      return;
+    }
+
+    enqueueSnackbar("Please wait while running analysis...", {
+      variant: "info",
+      anchorOrigin: { vertical: "top", horizontal: "center" },
+    });
+
+    setTimeout(async () => {
+      try {
+        const result = await iterativeResponseSpectrum(
+          globalBoundaryGroups[parseInt(selectedBoundaryGroup)],
+          globalRsLoadCases[parseInt(selectedRsLoadCase)],
+          parseFloat(tolerance),
+          mapi_key
+        );
+
+        // 🔥 reshape flat array into iteration → node → data
+        const groupedResults: Results = {};
+        result.table.forEach((row: any) => {
+          const iter = String(row.iteration);
+          const node = String(row.node);
+          if (!groupedResults[iter]) groupedResults[iter] = {};
+          groupedResults[iter][node] = {
+            Dx_Stiffness: row.Dx_Stiffness,
+            Dy_Stiffness: row.Dy_Stiffness,
+            Dz_Stiffness: row.Dz_Stiffness,
+            Dx_Disp: row.Dx_Disp,
+            Dy_Disp: row.Dy_Disp,
+            Dz_Disp: row.Dz_Disp,
+          };
+        });
+
+        setResults(groupedResults);
+        setLogData(result.log);
+
+        // pick first iteration as default
+        const firstIteration = Object.keys(groupedResults)[0] || null;
+        setSelectedIteration(firstIteration);
+
+        // build dropdown map
+        const mappedIterations = new Map(
+          Object.keys(groupedResults).map((iter) => [iter, parseInt(iter)])
+        );
+        setIterations(mappedIterations);
+
+        console.log("Mapped iterations:", mappedIterations);
+        console.log("Analysis results:", groupedResults);
+
+        enqueueSnackbar("Analysis completed successfully!", {
+          variant: "success",
+          anchorOrigin: { vertical: "top", horizontal: "center" },
+        });
+      } catch (error) {
+        enqueueSnackbar("Error while running analysis!", {
+          variant: "error",
+          anchorOrigin: { vertical: "top", horizontal: "center" },
+        });
+        console.error("Error running analysis:", error);
+      }
+    }, 0);
+  } catch (error) {
+    enqueueSnackbar("Error while running analysis!", {
+      variant: "error",
+      anchorOrigin: { vertical: "top", horizontal: "center" },
+    });
+    console.error("Error running analysis:", error);
+  }
+};
+
   const handleDownload = () => {
 	// Process the downloaded Excel file
 	if (Object.keys(results).length === 0) {
@@ -298,25 +299,7 @@ const handleRunAnalysis = async () => {
 	// 	document.body.removeChild(link);
 	
 };
-const handleDownloadLogExcel = () => {
-  if (!logData || logData.length === 0) {
-    enqueueSnackbar("No log data to download.", {
-			variant: "warning",
-			anchorOrigin: { vertical: "top", horizontal: "center" },
-		  });
-    return;
-  }
-  const worksheetData = [
-    ["Iteration", "Node", "Max Ratio Difference"],
-    ...logData.map(([iteration, node, maxDiff]) => [iteration, node, maxDiff]),
-  ];
-  const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "ConvergenceLog");
-  XLSX.writeFile(workbook, "ConvergenceLog.xlsx");
-};
 
-  
   return (
     <Panel width="1220px" height="460px" marginTop={3}>
 		<Panel width="1220px" height="50px" variant="box">
@@ -400,31 +383,50 @@ Refresh
 </Button> 
 </Panel>
 </Panel>
-<Panel width="570px" height="380px" variant="strock" marginX="20px"marginRight={0} >
-<Panel width="570px" height="20px" variant="box" marginX="0px"marginRight={0} flexItem>
-<Typography variant="h1" paddingRight={45}>Results</Typography>
-<Button onClick={handleDownloadLogExcel}>Log Excel</Button>
-<ComponentsIconAdd results={results} onDownload={handleDownload} />
+<Panel width="570px" height="380px" variant="strock" marginX="20px" marginRight={0}>
+  <Grid container direction="column" spacing={0}>
+    
+    {/* Row 1: Results + Download icon */}
+    <Grid item>
+      <Grid container alignItems="start" >
+        <Grid item marginLeft={1} >
+          <Typography variant="h1" marginTop={1} >Results</Typography>
+        </Grid>
+        <Grid item marginLeft={59} >
+          <ComponentsIconAdd results={results} logData={logData} onDownload={handleDownload} />
+        </Grid>
+      </Grid>
+    </Grid>
+
+    {/* Row 2: Iteration Dropdown */}
+    <Grid item>
+      <Panel width="550px" height="60px" variant="box" marginTop={0}>
+        <Typography variant="body2">Select Iteration step</Typography>
+        <div style={{ marginTop: "6px" }}>
+          <DropList
+            itemList={iterations}
+            width="539px"
+            value={selectedIteration}
+            onChange={onChangeHandler_ir}
+          />
+        </div>
+      </Panel>
+    </Grid>
+
+    {/* Row 3: Table */}
+    <Grid item>
+      <Panel width="550px" height="330px" variant="box" marginRight="5px">
+        <Scrollbars width="538px" height="245px">
+          <ComponentsTableBundle tableData={tableData} />
+        </Scrollbars>
+      </Panel>
+    </Grid>
+
+  </Grid>
 </Panel>
-<Panel width="550px" height="60px" variant="box"marginRight="5px">
-			<Typography variant="body2">Select Iteration step</Typography>
-			<div style={{ marginTop: '6px' }}>
-			<DropList 
-			itemList={iterations}
-			width="539px" 
-			defaultValue="Korean"
-			value={selectedIteration}
-			onChange={onChangeHandler_ir} 
-		/>   </div>
-		</Panel>
-		<Panel width="550px"height="330px" variant="box" marginRight="5px">
-			<Scrollbars width="538px" height="245px">
-		<ComponentsTableBundle tableData={tableData} />   
-		</Scrollbars>
-		</Panel>	
-</Panel>
+
 <Panel width="450px" height="380px" variant="strock" marginX="10px">
-	<Typography variant="h1" center={true} color="primary">Live Convergence Plot</Typography>
+	<Typography variant="h1" center={true} color="primary">Convergence Plot</Typography>
   <div style={{ width: "100%", height: "360px", position: "relative" }}>
     <ChartLine
       data={convergencePlotData}

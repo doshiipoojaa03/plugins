@@ -15,18 +15,19 @@ const ComponentsTableBundle = ({ tableData }) => {
         </TableRow>
       </TableHead>
       <TableBody>
-        {Object.entries(tableData).map(([node, data]) => (
-          <TableRow key={node}>
-            <TableCell>{node}</TableCell>
-            <TableCell>{data.Dx_Stiffness.toFixed(3)}</TableCell>
-            <TableCell>{data.Dy_Stiffness.toFixed(3)}</TableCell>
-            <TableCell>{data.Dz_Stiffness.toFixed(3)}</TableCell>
-            <TableCell>{data.Dx_Disp.toFixed(3)}</TableCell>
-            <TableCell>{data.Dy_Disp.toFixed(3)}</TableCell>
-            <TableCell>{data.Dz_Disp.toFixed(3)}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
+      {Object.entries(tableData).map(([node, data]) => (
+        <TableRow key={node}>
+          <TableCell>{node}</TableCell>
+          <TableCell>{data?.Dx_Stiffness !== undefined ? data.Dx_Stiffness.toFixed(3) : "-"}</TableCell>
+          <TableCell>{data?.Dy_Stiffness !== undefined ? data.Dy_Stiffness.toFixed(3) : "-"}</TableCell>
+          <TableCell>{data?.Dz_Stiffness !== undefined ? data.Dz_Stiffness.toFixed(3) : "-"}</TableCell>
+          <TableCell>{data?.Dx_Disp !== undefined ? data.Dx_Disp.toFixed(3) : "-"}</TableCell>
+          <TableCell>{data?.Dy_Disp !== undefined ? data.Dy_Disp.toFixed(3) : "-"}</TableCell>
+          <TableCell>{data?.Dz_Disp !== undefined ? data.Dz_Disp.toFixed(3) : "-"}</TableCell>
+        </TableRow>
+      ))}
+    </TableBody>
+
     </Table>
   );
 };

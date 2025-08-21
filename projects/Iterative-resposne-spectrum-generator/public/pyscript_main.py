@@ -364,7 +364,7 @@ def get_direction_label(item):
 def boundary_groups_in_final_stage():
     construction_stages = MidasAPI_gen("GET", "/db/STAG").get("STAG", {})
     if not construction_stages:
-        print("No construction stages found.")
+        # print("No construction stages found.")
         return None
 
     activated_groups = []  # To keep track of activated groups
@@ -398,7 +398,7 @@ def process_spring_data():
 
     # Check if construction stages exist
     if not construction_stages or "STAG" not in construction_stages or not construction_stages["STAG"]:
-        print("No construction stages found. Processing all springs.")
+        # print("No construction stages found. Processing all springs.")
         active_boundary_groups = None  # Process all springs if no construction stages
     else:
         active_boundary_groups = boundary_groups_in_final_stage()  # Use only active groups
@@ -419,7 +419,7 @@ def process_spring_data():
 
                 # Skip if stiffness for this direction is already calculated
                 if direction_label in node_stiffness:
-                    print(f"Skipping duplicate stiffness calculation for Node {node_id} in direction {direction_label}")
+                    # print(f"Skipping duplicate stiffness calculation for Node {node_id} in direction {direction_label}")
                     continue
 
                 func_id = str(item.get("FUNCTION"))
@@ -444,8 +444,8 @@ def process_spring_data():
 
     if not stiffness_data:
         print("No active boundary groups found. Exiting spring data processing.")
-    else:
-        print(f"Processed {len(stiffness_data)} springs.")
+    # else:
+    #     print(f"Processed {len(stiffness_data)} springs.")
 
     return ns_data, ml_data, stiffness_data
 
@@ -538,6 +538,8 @@ def create_new_springs(ns_data, stiffness_data, group_name="RS Boundary Group"):
 def assign_boundary_for_response_spectrum(group_name="RS Boundary Group"):
     # Fetch the current boundary change assignment data
     boundary_data = MidasAPI_gen("GET", "/db/BCCT").get("BCCT")
+    if (boundary_data.get("BCCT") == {}) :
+        return
     
     # Find the boundary change assigned to the response spectrum (THRSEV)
     if boundary_data and "1" in boundary_data:
@@ -550,7 +552,7 @@ def assign_boundary_for_response_spectrum(group_name="RS Boundary Group"):
         value = highlighted_entries[0].get('BGCNAME')
         
         if value == "UNCHANGED":
-            print("No 'THRSEV' boundary group found in the current boundary change.")
+            # print("No 'THRSEV' boundary group found in the current boundary change.")
             vBOUNDARY = data['vBOUNDARY']
             # Append 'RS Boundary' to the existing list
             vBOUNDARY.append({'BGCNAME': group_name, 'vBG': [group_name]})
@@ -576,7 +578,7 @@ def assign_boundary_for_response_spectrum(group_name="RS Boundary Group"):
         }
         
     else:
-        print("No boundary change assignment found.")
+        # print("No boundary change assignment found.")
         BoundaryChangeAssignment = {
             "Assign": {
                 "1": {
@@ -618,7 +620,7 @@ def get_displacement_results(load_case_name, nodes_localaxes, nodes_globalaxes):
         local_displacements = get_local_displacements(nodes_localaxes, formatted_load_case_name)
         displacements = local_displacements + global_displacements
 
-    print("Displacement results successfully extracted.")
+    # print("Displacement results successfully extracted.")
     return displacements
 
 # Function to get global displacements for a list of nodes
@@ -766,7 +768,7 @@ def calculate_difference(previous_displacement_values, new_displacement_values, 
             node_with_max_diff = node_id
 
     log.append((iteration, node_with_max_diff, max_ratio_diff))
-    print(f"Max Ratio Difference: {max_ratio_diff:.4f} at Node {node_with_max_diff}")
+    # print(f"Max Ratio Difference: {max_ratio_diff:.4f} at Node {node_with_max_diff}")
     return max_ratio_diff, log
 
 # Function to extract displacements for comparison
@@ -802,7 +804,7 @@ def export_log_to_csv(log, filename="debug_log.csv"):
         writer = csv.writer(file)
         writer.writerow(["Iteration", "Node", "Max_Ratio_Diff"])
         writer.writerows(log)
-    print(f"Debug log saved to {filename}")
+    # print(f"Debug log saved to {filename}")
 
 # Main iterative workflow
 # def iterative_response_spectrum(Boundary_group_name, load_case_name, threshold_percentage,global_key):
@@ -886,7 +888,7 @@ def iterative_response_spectrum(Boundary_group_name, load_case_name, threshold, 
     iteration = 2
 
     while max_ratio_diff > threshold:
-        print(f"Iteration {iteration}")
+        # print(f"Iteration {iteration}")
         updated_stiffness = create_updated_stiffness_data(ns_data, ml_data, displacement_results)
         create_new_springs(ns_data, updated_stiffness, Boundary_group_name)
 
@@ -916,7 +918,7 @@ def iterative_response_spectrum(Boundary_group_name, load_case_name, threshold, 
 
         iteration += 1
 
-    print(f"Converged after {iteration - 1} iterations!")
+    # print(f"Converged after {iteration - 1} iterations!")
 
     # ---- Flatten results for UI (table + log) ----
     table_data = []
@@ -936,6 +938,7 @@ def iterative_response_spectrum(Boundary_group_name, load_case_name, threshold, 
             }
             table_data.append(row)
     # Return combined JSON for UI
+    # print(table_data)
     return json.dumps({
         "table": table_data,
         "log": log
