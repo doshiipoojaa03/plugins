@@ -15,21 +15,27 @@ import * as XLSX from 'xlsx';
 let globalStructureGroups: { [key: number]: string } = {};
 let globalBoundaryGroups: { [key: number]: string } = {};
 let globalRsLoadCases: { [key: number]: string } = {};
-interface Displacement {
-    Dx: number;
-    Dy: number;
-    Dz: number;
-}
-let globalkey: string = "";
-interface IterationResults {
-    [key: string]: Displacement;
+
+interface NodeResult {
+  Dx_Stiffness: number;
+  Dy_Stiffness: number;
+  Dz_Stiffness: number;
+  Dx_Disp: number;
+  Dy_Disp: number;
+  Dz_Disp: number;
 }
 
-interface Results {
-    [key: string]: IterationResults;
+interface IterationResults {
+  [node: string]: NodeResult;
 }
+
+type Results = {
+  [iteration: string]: IterationResults;
+};
+
+
 const App = () => {
-  const [structureGroups, setStructureGroups] = useState<Map<string, number>>(new Map());
+  // const [structureGroups, setStructureGroups] = useState<Map<string, number>>(new Map());
   const [boundaryGroups, setBoundaryGroups] = useState<Map<string, number>>(new Map());
   const [rsLoadCases, setRsLoadCases] = useState<Map<string, number>>(new Map());
   const [selectedStructureGroup, setSelectedStructureGroup] = useState("");
@@ -37,25 +43,23 @@ const App = () => {
   const [selectedRsLoadCase, setSelectedRsLoadCase] = useState("");
   const [tolerance, setTolerance] = useState("0.01");
   const [iterations, setIterations] = useState<Map<string, number>>(new Map());
-  const [results, setResults] = useState({});
-  const [selectedIteration, setSelectedIteration] = useState(null);
-  const [tableData, setTableData] = useState<{ [key: string]: Displacement }>({});
-  const [data, setData] = useState(null);
+  const [results, setResults] = useState<Results>({});
+	const [tableData, setTableData] = useState<IterationResults>({});
+  const [selectedIteration, setSelectedIteration] = useState<string | null>(null);
+	const [logData, setLogData] = useState<Array<[number, number, number]>>([]); //
+  // const [data, setData] = useState(null);
   const { enqueueSnackbar } = useSnackbar();
   const [csvData, setCsvData] = useState<string>("");
   // Fetch data for dropdowns
   const [triggerFetch, setTriggerFetch] = useState<boolean>(false);
-	
-	const dummyData = [
-    {
-      id: "dummy-line",
-      color: "transparent", // hides the line
-      data: [
-        { x: 0, y: 0 },
-        { x: 10, y: 0.1 }, // flat line just for grid scaling
-      ],
-    },
-  ];
+
+	const convergencePlotData = logData.length > 0
+  ? [{
+      id: "convergence",
+      color: "blue",
+      data: logData.map(([iteration, , maxRatio]) => ({ x: iteration, y: maxRatio })),
+    }]
+  : [];
 
   const resetAndFetchData = () => {
 	  // Reset state variables
@@ -123,35 +127,24 @@ const App = () => {
   
  
   // Update table when iteration changes
-  useEffect(() => {
-	if (selectedIteration && results[selectedIteration]) {
-		const formattedData = Object.keys(results[selectedIteration]).reduce((acc: { [key: string]: Displacement }, key) => {
-			const displacement = results[selectedIteration][key] as Displacement;
-			acc[key] = {
-				Dx: displacement.Dx !== undefined ? parseFloat(displacement.Dx.toFixed(4)) : 0,
-				Dy: displacement.Dy !== undefined ? parseFloat(displacement.Dy.toFixed(4)) : 0,
-				Dz: displacement.Dz !== undefined ? parseFloat(displacement.Dz.toFixed(4)) : 0,
-			};
-			return acc;
-		}, {} as { [key: string]: Displacement });
+ useEffect(() => {
+  if (selectedIteration && results[selectedIteration]) {
+    setTableData(results[selectedIteration]);
 
-		setTableData(formattedData);
-
-		// Convert formattedData to CSV string
-		const csvRows = [
-			["Key", "Dx", "Dy", "Dz"], // Header row
-			...Object.entries(formattedData).map(([key, displacement]) => [
-				key,
-				displacement.Dx,
-				displacement.Dy,
-				displacement.Dz,
-			]),
-		];
-
-		const csvString = csvRows.map(row => row.join("\t")).join("\n");
-		setCsvData(csvString);
-	}
+    // Build CSV with both stiffness + displacement
+    const csvRows = [
+      ["Node", "Dx_Stiffness", "Dy_Stiffness", "Dz_Stiffness", "Dx_Disp", "Dy_Disp", "Dz_Disp"],
+      ...Object.entries(results[selectedIteration]).map(([node, data]) => [
+        node,
+        data.Dx_Stiffness, data.Dy_Stiffness, data.Dz_Stiffness,
+        data.Dx_Disp, data.Dy_Disp, data.Dz_Disp
+      ])
+    ];
+    const csvString = csvRows.map(row => row.join("\t")).join("\n");
+    setCsvData(csvString);
+  }
 }, [selectedIteration, results]);
+
   function onChangeHandler_sg(event: any){
 	setSelectedStructureGroup(event.target.value);
 }
@@ -220,23 +213,28 @@ const handleRunAnalysis = async () => {
                 globalRsLoadCases[parseInt(selectedRsLoadCase)],
                 tolerance
             );
-            globalkey = mapi_key;
+            const globalkey = mapi_key;
 
             try {
                 const result = await iterativeResponseSpectrum(
-                    globalBoundaryGroups[parseInt(selectedBoundaryGroup)],
-                    globalRsLoadCases[parseInt(selectedRsLoadCase)],
-                    parseFloat(tolerance),
-                    globalkey
-                );
-                console.log("Analysis results:", result);
-                setResults(result);
-                const mappedIterations = new Map<string, number>(
-                    Object.keys(result).map((key) => {
-                        return [key, parseInt(key)];  // Adjust as needed
-                    })
-                );
-                setIterations(mappedIterations);
+										globalBoundaryGroups[parseInt(selectedBoundaryGroup)], 
+										globalRsLoadCases[parseInt(selectedRsLoadCase)], 
+										parseFloat(tolerance), 
+										mapi_key
+									);
+
+									setResults(result.table);
+									setLogData(result.log);
+									
+									// Set initially selected iteration to first iteration
+									const firstIteration = Object.keys(result.table)[0] || null;
+									setSelectedIteration(firstIteration);
+
+									// Map for iteration dropdown
+									const mappedIterations = new Map(
+										Object.keys(result.table).map(key => [key, parseInt(key)])
+									);
+									setIterations(mappedIterations);
                 console.log("Mapped iterations:", mappedIterations);
                 console.log("Analysis results:", result);
                 enqueueSnackbar("Analysis completed successfully!", {
@@ -298,7 +296,26 @@ const handleRunAnalysis = async () => {
 	// 	document.body.appendChild(link);
 	// 	link.click();
 	// 	document.body.removeChild(link);
+	
 };
+const handleDownloadLogExcel = () => {
+  if (!logData || logData.length === 0) {
+    enqueueSnackbar("No log data to download.", {
+			variant: "warning",
+			anchorOrigin: { vertical: "top", horizontal: "center" },
+		  });
+    return;
+  }
+  const worksheetData = [
+    ["Iteration", "Node", "Max Ratio Difference"],
+    ...logData.map(([iteration, node, maxDiff]) => [iteration, node, maxDiff]),
+  ];
+  const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "ConvergenceLog");
+  XLSX.writeFile(workbook, "ConvergenceLog.xlsx");
+};
+
   
   return (
     <Panel width="1220px" height="460px" marginTop={3}>
@@ -385,7 +402,8 @@ Refresh
 </Panel>
 <Panel width="570px" height="380px" variant="strock" marginX="20px"marginRight={0} >
 <Panel width="570px" height="20px" variant="box" marginX="0px"marginRight={0} flexItem>
-<Typography variant="h1" paddingRight={60}>Results</Typography>
+<Typography variant="h1" paddingRight={45}>Results</Typography>
+<Button onClick={handleDownloadLogExcel}>Log Excel</Button>
 <ComponentsIconAdd results={results} onDownload={handleDownload} />
 </Panel>
 <Panel width="550px" height="60px" variant="box"marginRight="5px">
@@ -409,7 +427,7 @@ Refresh
 	<Typography variant="h1" center={true} color="primary">Live Convergence Plot</Typography>
   <div style={{ width: "100%", height: "360px", position: "relative" }}>
     <ChartLine
-      data={dummyData}
+      data={convergencePlotData}
       axisBottom
       axisBottomTickValues={5}
       axisBottomDecimals={1}
@@ -420,7 +438,7 @@ Refresh
       axisLeftLegend="Max Ratio Diff"
       width="100%"
       height="100%"
-      pointSize={0}
+      pointSize={2 }
       marginTop={20}
       marginRight={25}
       marginLeft={50}

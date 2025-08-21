@@ -219,33 +219,36 @@ export function spfcUpdate4NZS1170_5_2004(
 }
 
 export function iterativeResponseSpectrum(
-	Boundary_group_name: string,
-	load_case_name: string,
-	threshold_percentage: number = 0.01,
-	mapi_key: string
-  ) {
-	return checkPyScriptReady(() => {
-	  const py_iterative_response_spectrum_func = pyscript.interpreter.globals.get(
-		"iterative_response_spectrum"
-	  );
-	//   const g_mapi_key = VerifyUtil.getMapiKey();
-	//   const g_base_port = VerifyUtil.getBasePort();
+  Boundary_group_name: string,
+  load_case_name: string,
+  threshold: number = 0.01,
+  mapi_key: string
+) {
+  return checkPyScriptReady(() => {
+    const py_iterative_response_spectrum_func =
+      pyscript.interpreter.globals.get("iterative_response_spectrum");
 
-	  const result = py_iterative_response_spectrum_func(
-		Boundary_group_name,
-		load_case_name,
-		threshold_percentage,
-		mapi_key
-	  );
-	  console.log("Raw result from Python function:", result);
+    const result = py_iterative_response_spectrum_func(
+      Boundary_group_name,
+      load_case_name,
+      threshold,
+      mapi_key
+    );
 
-      try {
-        const parsedResult = JSON.parse(result);
-        console.log("Parsed result:", parsedResult);
-        return parsedResult;
-      } catch (parseError) {
-        console.error("Error parsing result:", parseError);
-        throw new Error(`Failed to parse result: ${result}`);
-      }
-	});
-  }
+    console.log("Raw result from Python function:", result);
+
+    try {
+      const parsedResult = JSON.parse(result);
+      console.log("Parsed result:", parsedResult);
+
+      // Ensure both keys exist
+      const tableData = parsedResult.table || [];
+      const logData = parsedResult.log || [];
+
+      return { table: tableData, log: logData };
+    } catch (parseError) {
+      console.error("Error parsing result:", parseError);
+      throw new Error(`Failed to parse result: ${result}`);
+    }
+  });
+}

@@ -13,6 +13,7 @@
 # this is sample code for python script.
 # if you want to use other python files, import here and functions export your javascript code.
 import json , requests
+import csv
 from pyscript_engineers_web import set_g_values, get_g_values, requests_json
 from pyscript_engineers_web import MidasAPI, Product
 
@@ -458,54 +459,54 @@ def get_next_spring_id(ns_data):
                 max_id = item.get("ID")
     return max_id + 1
 
-# Function to create a structural group for the given nodes
-def create_structural_group(node_list, Structural_group_name):
-    # Fetch existing group data
-    existing_groups = MidasAPI_gen("GET", "/db/GRUP")
+# # Function to create a structural group for the given nodes
+# def create_structural_group(node_list, Structural_group_name):
+#     # Fetch existing group data
+#     existing_groups = MidasAPI_gen("GET", "/db/GRUP")
     
-    if not existing_groups:
-        print("Failed to retrieve existing group data.")
-        return
+#     if not existing_groups:
+#         print("Failed to retrieve existing group data.")
+#         return
 
-    # Check if the structural group already exists in the data
-    assign_key = None
-    for key, group in existing_groups.get("GRUP", {}).items():
-        if group.get("NAME") == Structural_group_name:
-            assign_key = key
-            break
+#     # Check if the structural group already exists in the data
+#     assign_key = None
+#     for key, group in existing_groups.get("GRUP", {}).items():
+#         if group.get("NAME") == Structural_group_name:
+#             assign_key = key
+#             break
 
-    # If the group doesn't exist, find the next available key
-    if assign_key is None:
-        assign_keys = existing_groups.get("GRUP", {})
-        if assign_keys:
-            assign_key = str(max(int(k) for k in assign_keys.keys()) + 1)
-        else:
-            assign_key = "1"  # If no groups exist, start with "1"
+#     # If the group doesn't exist, find the next available key
+#     if assign_key is None:
+#         assign_keys = existing_groups.get("GRUP", {})
+#         if assign_keys:
+#             assign_key = str(max(int(k) for k in assign_keys.keys()) + 1)
+#         else:
+#             assign_key = "1"  # If no groups exist, start with "1"
 
-    # Define the structural group with the correct key
-    structural_group = {
-        "Assign": {
-            assign_key: {
-                "NAME": Structural_group_name,
-                "P_TYPE": 0,
-                "N_LIST": node_list
-            }
-        }
-    }
+#     # Define the structural group with the correct key
+#     structural_group = {
+#         "Assign": {
+#             assign_key: {
+#                 "NAME": Structural_group_name,
+#                 "P_TYPE": 0,
+#                 "N_LIST": node_list
+#             }
+#         }
+#     }
 
-    # Send the updated structural group data to MIDAS
-    response = MidasAPI_gen("PUT", "/db/GRUP", structural_group)
-    if response:
-        print(f"Structural group '{Structural_group_name}' created with nodes: {node_list}")
-    else:
-        print("Failed to create structural group.")
+#     # Send the updated structural group data to MIDAS
+#     response = MidasAPI_gen("PUT", "/db/GRUP", structural_group)
+#     if response:
+#         print(f"Structural group '{Structural_group_name}' created with nodes: {node_list}")
+#     else:
+#         print("Failed to create structural group.")
 
 
 # Function to create a new set of linear springs using an existing boundary group
-def create_new_springs(ns_data, stiffness_data, group_name):
+def create_new_springs(ns_data, stiffness_data, group_name="RS Boundary Group"):
     new_spring_data = {"Assign": {}}
     spring_id = get_next_spring_id(ns_data)
-    minimal_stiffness = 0.001  # Use a negligible value for zero stiffness
+    minimal_stiffness = 10  # Use a negligible value for zero stiffness
 
     for node_id, stiffness in stiffness_data.items():
         dx_stiffness = stiffness.get("Dx", minimal_stiffness)
@@ -534,7 +535,7 @@ def create_new_springs(ns_data, stiffness_data, group_name):
     MidasAPI_gen("PUT", "/db/NSPR", new_spring_data)
 
 # Function to assign boundary group for response spectrum analysis
-def assign_boundary_for_response_spectrum(group_name):
+def assign_boundary_for_response_spectrum(group_name="RS Boundary Group"):
     # Fetch the current boundary change assignment data
     boundary_data = MidasAPI_gen("GET", "/db/BCCT").get("BCCT")
     
@@ -604,36 +605,78 @@ def run_analysis():
     MidasAPI_gen("POST", "/doc/ANAL", Analysis)
     # print("Response spectrum analysis successfully initiated.")
 
-# Function to extract displacement results based on the structural group and load case
-def get_displacement_results(node_list, load_case_name):
-    # Format the load case name as "RY(RS)"
-    formatted_load_case_name = f"{load_case_name}(RS)"  # Add (RS) to the load case name
+# Function to extract displacement results for both local and global nodes for a load case
+def get_displacement_results(load_case_name, nodes_localaxes, nodes_globalaxes):
+    formatted_load_case_name = f"{load_case_name}(RS)"
 
-    displacements = {
+    if nodes_localaxes and not nodes_globalaxes:
+        displacements = get_local_displacements(nodes_localaxes, formatted_load_case_name)
+    elif nodes_globalaxes and not nodes_localaxes:
+        displacements = get_global_displacements(nodes_globalaxes, formatted_load_case_name)
+    else:
+        global_displacements = get_global_displacements(nodes_globalaxes, formatted_load_case_name)
+        local_displacements = get_local_displacements(nodes_localaxes, formatted_load_case_name)
+        displacements = local_displacements + global_displacements
+
+    print("Displacement results successfully extracted.")
+    return displacements
+
+# Function to get global displacements for a list of nodes
+def get_global_displacements(nodes_globalaxes, formatted_load_case_name):
+    request = {
         "Argument": {
             "TABLE_NAME": "DisplacementsGlobal",
             "TABLE_TYPE": "DISPLACEMENTG",
-            "EXPORT_PATH": "C:\\MIDAS\\Result\\Output.JSON",
-            "STYLES": {"FORMAT": "Scientific", "PLACE": 3},
-            "COMPONENTS": ["Node", "Load", "DX", "DY", "DZ"],
-            "NODE_ELEMS": {"KEYS": node_list},
-            "LOAD_CASE_NAMES": [formatted_load_case_name],  # Use the formatted load case name
+            #"STYLES": {"FORMAT": "Scientific", "PLACE": 3},
+            "COMPONENTS": ["Node", "DX", "DY", "DZ", "RX", "RY", "RZ"],
+            "NODE_ELEMS": {"KEYS": nodes_globalaxes},
+            "LOAD_CASE_NAMES": [formatted_load_case_name],
         }
     }
-    results = MidasAPI_gen("POST", "/post/TABLE", displacements)
-    # print("Displacement results successfully extracted.") // com`ment out for security`
-    return results
+    response = MidasAPI_gen("POST", "/post/TABLE", request)
+    if response and "DisplacementsGlobal" in response:
+        return [[int(entry[1])] + [float(value) for value in entry[2:]] for entry in response["DisplacementsGlobal"]["DATA"]]
+    return []
+
+# Function to get local displacements for a list of nodes
+def get_local_displacements(nodes_localaxes, formatted_load_case_name):
+    request = {
+        "Argument": {
+            "TABLE_NAME": "DisplacementsLocal",
+            "TABLE_TYPE": "DISPLACEMENTL",
+            #"STYLES": {"FORMAT": "Scientific", "PLACE": 3},
+            "COMPONENTS": ["Node", "DX", "DY", "DZ", "RX", "RY", "RZ"],
+            "NODE_ELEMS": {"KEYS": nodes_localaxes},
+            "LOAD_CASE_NAMES": [formatted_load_case_name],
+        }
+    }
+    response = MidasAPI_gen("POST", "/post/TABLE", request)
+    if response and "DisplacementsLocal" in response:
+        return [[int(entry[1])] + [float(value) for value in entry[2:]] for entry in response["DisplacementsLocal"]["DATA"]]
+    return []
+
+# Function to extract displacements for comparison
+def extract_displacement_values(displacement_results):
+    displacements = {}
+    for result in displacement_results:
+        node_id = result[0]
+        dx_disp = result[1]
+        dy_disp = result[2]
+        dz_disp = result[3]
+        displacements[node_id] = {"Dx": dx_disp, "Dy": dy_disp, "Dz": dz_disp}
+    return displacements
+
 
 # Function to create updated stiffness data after interpolation
 def create_updated_stiffness_data(ns_data, ml_data, displacement_results):
     updated_stiffness_data = {}
 
     # Iterate over displacement results
-    for result in displacement_results['DisplacementsGlobal']['DATA']:
-        node_id = int(result[1])  # Node number
-        dx_disp = float(result[3])  # Displacement in Dx
-        dy_disp = float(result[4])  # Displacement in Dy
-        dz_disp = float(result[5])  # Displacement in Dz
+    for result in displacement_results:
+        node_id = result[0]  # Node number
+        dx_disp = abs(result[1])
+        dy_disp = abs(result[2])
+        dz_disp = abs(result[3])
 
         # Check if the node exists in ns_data
         if str(node_id) in ns_data['NSPR']:
@@ -667,6 +710,8 @@ def create_updated_stiffness_data(ns_data, ml_data, displacement_results):
                         new_stiffness = calculate_initial_stiffness(func_items)
                     elif direction_label == 'Dz':
                         new_stiffness = interpolate_stiffness_from_displacement(func_items, dz_disp)
+                    else:
+                        new_stiffness = 0
 
                     node_stiffness[direction_label] = new_stiffness
                     # print(f"Updated Stiffness in {direction_label}: {new_stiffness}")// com`ment out for security`
@@ -699,30 +744,40 @@ def create_updated_stiffness_data(ns_data, ml_data, displacement_results):
 
 
 
-# Function to calculate percentage difference between two sets of displacement values
-def calculate_percentage_difference(previous_displacement_values, new_displacement_values):
+# Function to calculate difference between two sets of displacement values
+def calculate_difference(previous_displacement_values, new_displacement_values, iteration, log):
     max_ratio_diff = 0
+    node_with_max_diff = None
 
-    for old, new in zip(previous_displacement_values, new_displacement_values):
-        ratio_diff_dx = abs((new[0] - old[0]) / old[0]) if old[0] != 0 else 0
-        ratio_diff_dy = abs((new[1] - old[1]) / old[1]) if old[1] != 0 else 0
-        ratio_diff_dz = abs((new[2] - old[2]) / old[2]) if old[2] != 0 else 0
-        
-        # Get the maximum percentage difference among Dx, Dy, Dz
+    for node_id in previous_displacement_values:
+        old = previous_displacement_values[node_id]
+        new = new_displacement_values.get(node_id)
+
+        if new is None:
+            continue
+
+        ratio_diff_dx = abs((new["Dx"] - old["Dx"]) / old["Dx"]) if old["Dx"] != 0 else 0
+        ratio_diff_dy = abs((new["Dy"] - old["Dy"]) / old["Dy"]) if old["Dy"] != 0 else 0
+        ratio_diff_dz = abs((new["Dz"] - old["Dz"]) / old["Dz"]) if old["Dz"] != 0 else 0
+
         ratio_diff = max(ratio_diff_dx, ratio_diff_dy, ratio_diff_dz)
         if ratio_diff > max_ratio_diff:
             max_ratio_diff = ratio_diff
+            node_with_max_diff = node_id
 
-    return max_ratio_diff
+    log.append((iteration, node_with_max_diff, max_ratio_diff))
+    print(f"Max Ratio Difference: {max_ratio_diff:.4f} at Node {node_with_max_diff}")
+    return max_ratio_diff, log
 
 # Function to extract displacements for comparison
 def extract_displacement_values(displacement_results):
-    displacements = []
-    for result in displacement_results['DisplacementsGlobal']['DATA']:
-        dx_disp = float(result[3])  # Displacement in Dx
-        dy_disp = float(result[4])  # Displacement in Dy
-        dz_disp = float(result[5])  # Displacement in Dz
-        displacements.append([dx_disp, dy_disp, dz_disp])
+    displacements = {}
+    for result in displacement_results:
+        node_id = result[0]
+        dx_disp = result[1]
+        dy_disp = result[2]
+        dz_disp = result[3]
+        displacements[node_id] = {"Dx": dx_disp, "Dy": dy_disp, "Dz": dz_disp}
     return displacements
 
 
@@ -742,50 +797,148 @@ def interpolate_stiffness_from_displacement(func_items, displacement):
     # If the displacement is beyond the range, return the last point's stiffness
     return func_items[-1]["Y"] / displacement if displacement != 0 else 0
 
+def export_log_to_csv(log, filename="debug_log.csv"):
+    with open(filename, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["Iteration", "Node", "Max_Ratio_Diff"])
+        writer.writerows(log)
+    print(f"Debug log saved to {filename}")
 
 # Main iterative workflow
-def iterative_response_spectrum(Boundary_group_name, load_case_name, threshold_percentage,global_key):
-    # print(global_key)
+# def iterative_response_spectrum(Boundary_group_name, load_case_name, threshold_percentage,global_key):
+#     # print(global_key)
+#     globals()['mapi_key'] = global_key  # Assign global_key to mapi_key
+#     # print(mapi_key)
+#     ns_data, ml_data, stiffness_data = process_spring_data()
+#     # create_structural_group(list(stiffness_data.keys()), Structural_group_name)
+#     node_list = list(stiffness_data.keys())
+#     create_new_springs(ns_data, stiffness_data, Boundary_group_name)
+#     assign_boundary_for_response_spectrum(Boundary_group_name)
+
+#     run_analysis()
+#     displacement_results = get_displacement_results(node_list, load_case_name)
+#     previous_displacement_values = extract_displacement_values(displacement_results)
+    
+#     # Initialize result storage
+#     iteration_results = {}
+#     iteration_results[1] = stiffness_data  # Store initial stiffness data
+
+#     # Start iterating
+#     max_percentage_diff = 100  # Start with a large difference
+#     iteration = 2
+    
+#     while max_percentage_diff > threshold_percentage:
+#         # print(f"Iteration {iteration}") // com`ment out for security`
+#         # Step 2: Update stiffness based on new displacements
+#         updated_stiffness = create_updated_stiffness_data(ns_data, ml_data, displacement_results)
+#         create_new_springs(ns_data, updated_stiffness, Boundary_group_name)
+        
+#         # Store updated stiffness for this iteration
+#         iteration_results[iteration] = updated_stiffness
+        
+#         # Step 3: Run analysis again and get new displacements
+#         run_analysis()
+#         displacement_results = get_displacement_results(node_list,load_case_name)
+#         new_displacement_values = extract_displacement_values(displacement_results)
+        
+#         # Step 4: Calculate the maximum percentage difference
+#         max_percentage_diff = calculate_percentage_difference(previous_displacement_values, new_displacement_values)
+#         # print(f"Max Percentage Difference: {max_percentage_diff:.4f}") // com`ment out for security`
+        
+#         previous_displacement_values = new_displacement_values
+#         iteration += 1
+
+#     print(f"Converged after {iteration - 1} iterations!")  # Print total iterations before convergence // com`ment out for security`
+#     return json.dumps(iteration_results)
+
+
+def iterative_response_spectrum(Boundary_group_name, load_case_name, threshold, global_key, log=None, live_callback=None):
     globals()['mapi_key'] = global_key  # Assign global_key to mapi_key
-    # print(mapi_key)
+    if log is None:
+        log = []
+
     ns_data, ml_data, stiffness_data = process_spring_data()
-    # create_structural_group(list(stiffness_data.keys()), Structural_group_name)
     node_list = list(stiffness_data.keys())
+
+    nodes_localaxes_all = list(map(int, MidasAPI_gen("GET", "/db/SKEW").get('SKEW', {}).keys()))
+    nodes_localaxes = [node for node in nodes_localaxes_all if node in node_list]
+    nodes_globalaxes = [node for node in node_list if node not in nodes_localaxes]
+
     create_new_springs(ns_data, stiffness_data, Boundary_group_name)
     assign_boundary_for_response_spectrum(Boundary_group_name)
-
     run_analysis()
-    displacement_results = get_displacement_results(node_list, load_case_name)
-    previous_displacement_values = extract_displacement_values(displacement_results)
-    
-    # Initialize result storage
-    iteration_results = {}
-    iteration_results[1] = stiffness_data  # Store initial stiffness data
 
-    # Start iterating
-    max_percentage_diff = 100  # Start with a large difference
+    displacement_results = get_displacement_results(load_case_name, nodes_localaxes, nodes_globalaxes)
+    previous_displacement_values = extract_displacement_values(displacement_results)
+
+    # Combine stiffness + displacement for first iteration
+    iteration_results = {
+        1: {
+            node_id: {
+                "stiffness": stiffness_data[node_id],
+                "displacement": previous_displacement_values.get(node_id, {"Dx": 0, "Dy": 0, "Dz": 0})
+            }
+            for node_id in node_list
+        }
+    }
+
+    max_ratio_diff = 100
     iteration = 2
-    
-    while max_percentage_diff > threshold_percentage:
-        # print(f"Iteration {iteration}") // com`ment out for security`
-        # Step 2: Update stiffness based on new displacements
+
+    while max_ratio_diff > threshold:
+        print(f"Iteration {iteration}")
         updated_stiffness = create_updated_stiffness_data(ns_data, ml_data, displacement_results)
         create_new_springs(ns_data, updated_stiffness, Boundary_group_name)
-        
-        # Store updated stiffness for this iteration
-        iteration_results[iteration] = updated_stiffness
-        
-        # Step 3: Run analysis again and get new displacements
+
         run_analysis()
-        displacement_results = get_displacement_results(node_list,load_case_name)
+        displacement_results = get_displacement_results(load_case_name, nodes_localaxes, nodes_globalaxes)
         new_displacement_values = extract_displacement_values(displacement_results)
-        
-        # Step 4: Calculate the maximum percentage difference
-        max_percentage_diff = calculate_percentage_difference(previous_displacement_values, new_displacement_values)
-        # print(f"Max Percentage Difference: {max_percentage_diff:.4f}") // com`ment out for security`
-        
+
+        # Store updated values
+        iteration_results[iteration] = {
+            node_id: {
+                "stiffness": updated_stiffness.get(node_id, {"Dx": 0, "Dy": 0, "Dz": 0}),
+                "displacement": new_displacement_values.get(node_id, {"Dx": 0, "Dy": 0, "Dz": 0})
+            }
+            for node_id in node_list
+        }
+
+        max_ratio_diff, log = calculate_difference(
+            previous_displacement_values,
+            new_displacement_values,
+            iteration,
+            log
+        )
         previous_displacement_values = new_displacement_values
+
+        if live_callback:
+            live_callback(log)
+
         iteration += 1
 
-    print(f"Converged after {iteration - 1} iterations!")  # Print total iterations before convergence // com`ment out for security`
-    return json.dumps(iteration_results)
+    print(f"Converged after {iteration - 1} iterations!")
+
+    # ---- Flatten results for UI (table + log) ----
+    table_data = []
+    for iter_id, nodes in iteration_results.items():
+        for node_id, data in nodes.items():
+            stiffness = data.get("stiffness", {})
+            displacement = data.get("displacement", {})
+            row = {
+                "iteration": int(iter_id),
+                "node": int(node_id),
+                "Dx_Stiffness": stiffness.get("Dx", 0),
+                "Dy_Stiffness": stiffness.get("Dy", 0),
+                "Dz_Stiffness": stiffness.get("Dz", 0),
+                "Dx_Disp": displacement.get("Dx", 0),
+                "Dy_Disp": displacement.get("Dy", 0),
+                "Dz_Disp": displacement.get("Dz", 0),
+            }
+            table_data.append(row)
+    # Return combined JSON for UI
+    return json.dumps({
+        "table": table_data,
+        "log": log
+    }, indent=2)
+
+
