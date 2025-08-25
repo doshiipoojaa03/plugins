@@ -431,16 +431,20 @@ Refresh
     <ChartLine
       data={convergencePlotData}
       axisBottom
-      axisBottomTickValues={5}
-      axisBottomDecimals={1}
+      axisBottomTickValues={
+        convergencePlotData.length > 0
+          ? Math.min(convergencePlotData[0].data.length) // ≤10 ticks
+          : 5
+      }
+      axisBottomDecimals={0}
       axisBottomLegend="Iteration"
       axisLeft
-      axisLeftTickValues={5}
+      axisLeftTickValues={10}
       axisLeftDecimals={2}
       axisLeftLegend="Max Ratio Diff"
       width="100%"
       height="100%"
-      pointSize={2 }
+      pointSize={2}
       marginTop={20}
       marginRight={25}
       marginLeft={50}
