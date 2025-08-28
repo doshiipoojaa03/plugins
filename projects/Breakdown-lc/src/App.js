@@ -707,10 +707,10 @@ function App() {
       }
     }
 
-    if (mvldid && mvldid.MVLDID) {
-      for (const key in mvldid.MVLDID) {
-        if (mvldid.MVLDID.hasOwnProperty(key)) {
-          const item = mvldid.MVLDID[key];
+    if (mvldid && mvldid.MVLDid) {
+      for (const key in mvldid.MVLDid) {
+        if (mvldid.MVLDid.hasOwnProperty(key)) {
+          const item = mvldid.MVLDid[key];
 
           if (item && item.LCNAME) {
             loadNames.push(item.LCNAME);
@@ -723,10 +723,10 @@ function App() {
         }
       }
     }
-    if (mvldtr && mvldtr.MVLDTR) {
-      for (const key in mvldtr.MVLDTR) {
-        if (mvldtr.MVLDTR.hasOwnProperty(key)) {
-          const item = mvldtr.MVLDTR[key];
+    if (mvldtr && mvldtr.MVLDtr) {
+      for (const key in mvldtr.MVLDtr) {
+        if (mvldtr.MVLDtr.hasOwnProperty(key)) {
+          const item = mvldtr.MVLDtr[key];
 
           if (item && item.LCNAME) {
             loadNames.push(item.LCNAME);
@@ -755,10 +755,10 @@ function App() {
         }
       }
     }
-    if (mvldch && mvldch.MVLDCH) {
-      for (const key in mvldch.MVLDCH) {
-        if (mvldch.MVLDCH.hasOwnProperty(key)) {
-          const item = mvldch.MVLDCH[key];
+    if (mvldch && mvldch.MVLDch) {
+      for (const key in mvldch.MVLDch) {
+        if (mvldch.MVLDch.hasOwnProperty(key)) {
+          const item = mvldch.MVLDch[key];
 
           if (item && item.LCNAME) {
             loadNames.push(item.LCNAME);
@@ -771,10 +771,10 @@ function App() {
         }
       }
     }
-    if (mvldeu && mvldeu.MVLDEU) {
+    if (mvldeu && mvldeu.MVLDeu) {
       for (const key in mvldeu.MVLDEU) {
-        if (mvldeu.MVLDEU.hasOwnProperty(key)) {
-          const item = mvldeu.MVLDEU[key];
+        if (mvldeu.MVLDeu.hasOwnProperty(key)) {
+          const item = mvldeu.MVLDeu[key];
 
           if (item && item.LCNAME) {
             loadNames.push(item.LCNAME);
@@ -787,10 +787,10 @@ function App() {
         }
       }
     }
-    if (mvldbs && mvldbs.MVLDBS) {
-      for (const key in mvldbs.MVLDBS) {
-        if (mvldbs.MVLDBS.hasOwnProperty(key)) {
-          const item = mvldbs.MVLDBS[key];
+    if (mvldbs && mvldbs.MVLDbs) {
+      for (const key in mvldbs.MVLDbs) {
+        if (mvldbs.MVLDbs.hasOwnProperty(key)) {
+          const item = mvldbs.MVLDbs[key];
 
           if (item && item.LCNAME) {
             loadNames.push(item.LCNAME);
@@ -803,10 +803,10 @@ function App() {
         }
       }
     }
-    if (mvldpl && mvldpl.MVLDPL) {
-      for (const key in mvldpl.MVLDPL) {
-        if (mvldpl.MVLDPL.hasOwnProperty(key)) {
-          const item = mvldpl.MVLDPL[key];
+    if (mvldpl && mvldpl.MVLDpl) {
+      for (const key in mvldpl.MVLDpl) {
+        if (mvldpl.MVLDpl.hasOwnProperty(key)) {
+          const item = mvldpl.MVLDpl[key];
 
           if (item && item.LCNAME) {
             loadNames.push(item.LCNAME);
