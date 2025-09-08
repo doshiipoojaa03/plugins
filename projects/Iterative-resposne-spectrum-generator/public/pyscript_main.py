@@ -503,7 +503,7 @@ def get_next_spring_id(ns_data):
 
 
 # Function to create a new set of linear springs using an existing boundary group
-def create_new_springs(ns_data, stiffness_data, group_name="RS Boundary Group"):
+def create_new_springs(ns_data, stiffness_data, group_name):
     new_spring_data = {"Assign": {}}
     spring_id = get_next_spring_id(ns_data)
     minimal_stiffness = 10  # Use a negligible value for zero stiffness
@@ -535,15 +535,15 @@ def create_new_springs(ns_data, stiffness_data, group_name="RS Boundary Group"):
     MidasAPI_gen("PUT", "/db/NSPR", new_spring_data)
 
 # Function to assign boundary group for response spectrum analysis
-def assign_boundary_for_response_spectrum(group_name="RS Boundary Group"):
+def assign_boundary_for_response_spectrum(group_name):
     # Fetch the current boundary change assignment data
     boundary_data = {}
     while(MidasAPI_gen("GET", "/db/BCCT").get("BCCT")):
         if (boundary_data.get("BCCT") == None):        # For version 1.1
-            return 
+            return boundary_data
         else:
             boundary_data.get("BCCT") == {}           # For version 2.1 
-            return
+            return boundary_data
     
     # FinSd the boundary change assigned to the response spectrum (THRSEV)
     if boundary_data and "1" in boundary_data:
